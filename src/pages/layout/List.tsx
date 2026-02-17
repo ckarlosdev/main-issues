@@ -4,7 +4,7 @@ import { useState } from "react";
 import Label from "./Label";
 
 type Props = {
-  issues?: Issue[];
+  issues?: Issue[] | null;
   flowsSelected: string[];
   equipNumberSelected: string | undefined;
 };

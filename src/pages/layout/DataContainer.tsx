@@ -1,9 +1,8 @@
 import { Col, Container, Form, Row } from "react-bootstrap";
-import { Employee, Equipment, IssueCreate } from "../../types";
+import { Equipment, IssueCreate } from "../../types";
 import LblEdit from "./LblEdit";
-import { Dispatch, useEffect, useState } from "react";
-import useHttpData from "../../hooks/useHttpData";
-import { searchEmployeesURL } from "../../hooks/urls";
+import { Dispatch, useEffect } from "react";
+import useEmployees from "../../hooks/useEmployees";
 
 type Props = {
   equipments?: Equipment[];
@@ -16,29 +15,25 @@ function DataContainer({ equipments, issueData, setIssueData }: Props) {
     const today = new Date();
     return today.toISOString().split("T")[0];
   };
-  const [employees, setEmployees] = useState<Employee[]>();
 
-  const { data: employeesData, search: searchEmployees } =
-    useHttpData<Employee[]>();
+  const { data: employeesData } = useEmployees();
 
   useEffect(() => {
-    loadEmployees();
     handleSetIssueValues("reportedDate", getTodayDate());
   }, []);
 
-  const loadEmployees = () => {
-    const url = searchEmployeesURL();
-    searchEmployees(url);
-  };
+  // useEffect(() => {
+  //   if (employeesData) {
+  //     const empFiltered = employeesData.sort((a, b) =>
+  //       a.firstName.localeCompare(b.firstName)
+  //     );
+  //     setEmployees(empFiltered);
+  //   }
+  // }, [employeesData]);
 
-  useEffect(() => {
-    if (employeesData) {
-      const empFiltered = employeesData.sort((a, b) =>
-        a.firstName.localeCompare(b.firstName)
-      );
-      setEmployees(empFiltered);
-    }
-  }, [employeesData]);
+  const empFiltered = [...(employeesData || [])].sort((a, b) =>
+    (a.firstName || "").localeCompare(b.firstName || ""),
+  );
 
   const handleSelectEquipment = (equipId: number) => {
     setIssueData((prev) => ({
@@ -48,7 +43,7 @@ function DataContainer({ equipments, issueData, setIssueData }: Props) {
   };
 
   const handleSelectEmployee = (empId: number) => {
-    const emp = employees?.find((empl) => empl.employeesId == empId);
+    const emp = empFiltered?.find((empl) => empl.employeesId == empId);
     const empName = emp ? emp?.firstName + " " + emp?.lastName : "";
     setIssueData((prev) => ({
       ...prev,
@@ -101,7 +96,7 @@ function DataContainer({ equipments, issueData, setIssueData }: Props) {
               //   onChange={(e) => handleEquipmentChange(Number(e.target.value))}
             >
               <option>Reported By</option>
-              {employees?.map(
+              {employeesData?.map(
                 (employee) =>
                   employee.status == "Active" &&
                   (employee.title == "Labor" ||
@@ -112,7 +107,7 @@ function DataContainer({ equipments, issueData, setIssueData }: Props) {
                     >
                       {employee.firstName} {employee.lastName}
                     </option>
-                  )
+                  ),
               )}
             </Form.Select>
           </Col>

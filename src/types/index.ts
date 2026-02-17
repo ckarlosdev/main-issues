@@ -45,3 +45,9 @@ export type Employee = {
   status: string;
   title: string;
 };
+
+export type User = {
+  id: number;
+  fullName: string;
+  email: string;
+};

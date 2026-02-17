@@ -12,18 +12,21 @@ import Title from "./Title";
 import EquipmentSelect from "./EquipmentSelect";
 import FlowFilters from "./FlowFilters";
 import CardName from "./CardName";
-import { SetStateAction, useEffect, useState } from "react";
-import { searchEquipmentsURL, searchIssuesURL } from "../../hooks/urls";
-import useHttpData from "../../hooks/useHttpData";
-import { Equipment, Issue, IssueCreate } from "../../types";
+import { SetStateAction, useState } from "react";
+import { IssueCreate } from "../../types";
 import DataContainer from "./DataContainer";
-import useMain from "../../hooks/useMain";
+import useEquipments from "../../hooks/useEquipments";
+import useIssues from "../../hooks/useIssues";
+import { useSaveIssue } from "../../hooks/useIssue";
 
 type Props = {};
 
 function Base({}: Props) {
-  const [issues, setIssues] = useState<Issue[] | undefined>();
-  const [equipments, setEquipments] = useState<Equipment[] | undefined>();
+  const { data: equipments } = useEquipments();
+  const { data: issuesData } = useIssues();
+
+  const { mutate } = useSaveIssue();
+
   const [flowsSelected, setFlowsSelected] = useState(["Pending"]);
   const [equipmentSelected, setEquipmentSelected] = useState<number>();
   const [showModalSubmit, setShowModalSubmit] = useState(false);
@@ -43,44 +46,15 @@ function Base({}: Props) {
     updatedBy: "",
   });
 
-  const { submitData } = useMain();
+  // const { submitData } = useMain();
 
-  const { data: issuesData, search: searchIssues } = useHttpData<Issue[]>();
-  const { data: equipmentsData, search: searchEquipments } =
-    useHttpData<Equipment[]>();
+  const issuesCopy = [...(issuesData || [])];
 
-  useEffect(() => {
-    loadEquipments();
-    loadIssues();
-  }, []);
-
-  const loadEquipments = () => {
-    const url = searchEquipmentsURL();
-    searchEquipments(url);
-  };
-
-  useEffect(() => {
-    if (equipmentsData) {
-      setEquipments(equipmentsData);
-    }
-  }, [equipmentsData]);
-
-  const loadIssues = () => {
-    const url = searchIssuesURL();
-    searchIssues(url);
-  };
-
-  useEffect(() => {
-    if (issuesData) {
-      const issuesCopy = [...issuesData];
-      const issuesOrdered = issuesCopy.sort((a, b) => {
-        const dateA = new Date(a.reportedDate);
-        const dateB = new Date(b.reportedDate);
-        return dateB.getTime() - dateA.getTime();
-      });
-      setIssues(issuesOrdered);
-    }
-  }, [issuesData]);
+  const issuesSorted = issuesCopy.sort((a, b) => {
+    const dateA = new Date(a.reportedDate);
+    const dateB = new Date(b.reportedDate);
+    return dateB.getTime() - dateA.getTime();
+  });
 
   const handleChange = (val: SetStateAction<string[]>) => {
     setFlowsSelected(val);
@@ -94,7 +68,7 @@ function Base({}: Props) {
   const findEquipmentById = (idToFind: number) => {
     if (equipments) {
       const equipNumber = equipments.find(
-        (equipment) => equipment.equipmentsId === idToFind
+        (equipment) => equipment.equipmentsId === idToFind,
       );
 
       return equipNumber?.number;
@@ -108,23 +82,44 @@ function Base({}: Props) {
 
   const handleSubmitIssue = async () => {
     console.log(issueData);
-    let validation = validateNewIssueData();
+    if (!validateNewIssueData()) return;
 
-    if (validation) {
-      let result: Issue | undefined;
-      console.log("Saving issue data");
-      result = await submitData(issueData);
-      alert("¡Data saved!");
-      if (result && result?.equipmentsIssuesId) {
-        setIssueData((prev) => ({
-          ...prev,
-          equipmentsIssuesId: result?.equipmentsIssuesId ?? 0,
-        }));
+    //   let result: Issue | undefined;
+    //   // console.log("Saving issue data");
+    //   result = await submitData(issueData);
+    //   alert("¡Data saved!");
+    //   if (result && result?.equipmentsIssuesId) {
+    //     setIssueData((prev) => ({
+    //       ...prev,
+    //       equipmentsIssuesId: result?.equipmentsIssuesId ?? 0,
+    //     }));
 
-        loadIssues();
-      }
-      handleCloseModalSubmit();
-    }
+    //     loadIssues();
+    //   }
+    //   handleCloseModalSubmit();
+
+    mutate(
+      { issueData },
+      {
+        onSuccess: (response) => {
+          const result = response.data;
+
+          if (result?.equipmentsIssuesId) {
+            setIssueData((prev) => ({
+              ...prev,
+              equipmentsIssuesId: result.equipmentsIssuesId,
+            }));
+          }
+
+          alert("¡Data saved!");
+          handleCloseModalSubmit();
+        },
+        onError: (error) => {
+          console.error("Error al guardar:", error);
+          alert("Error al guardar los datos");
+        },
+      },
+    );
   };
 
   const validateNewIssueData = () => {
@@ -206,10 +201,10 @@ function Base({}: Props) {
                   style={{ overflowY: "auto" }}
                 >
                   <List
-                    issues={issues}
+                    issues={issuesSorted}
                     flowsSelected={flowsSelected}
                     equipNumberSelected={findEquipmentById(
-                      Number(equipmentSelected)
+                      Number(equipmentSelected),
                     )}
                   />
                 </Card.Body>
